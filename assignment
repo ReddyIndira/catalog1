@@ -1,0 +1,69 @@
+#include "json.hpp"
+using json = nlohmann::json;
+
+#include <iostream>
+#include <vector>
+#include <map>
+#include <sstream>
+#include <cmath>
+#include <nlohmann/json.hpp> // For JSON parsing
+
+using json = nlohmann::json;
+using namespace std;
+
+// Function to convert a number from a given base to decimal
+int baseToDecimal(const string &num, int base) {
+    int result = 0;
+    for (char digit : num) {
+        result = result * base + (isdigit(digit) ? digit - '0' : digit - 'A' + 10);
+    }
+    return result;
+}
+
+// Function to compute Lagrange interpolation to find f(0)
+double lagrangeInterpolation(const vector<pair<int, int>> &points) {
+    double result = 0;
+    int size = points.size();
+    
+    for (int i = 0; i < size; i++) {
+        double term = points[i].second;
+        for (int j = 0; j < size; j++) {
+            if (i != j) {
+                term *= (0 - points[j].first) / static_cast<double>(points[i].first - points[j].first);
+            }
+        }
+        result += term;
+    }
+    return result;
+}
+
+int main() {
+    string jsonInput;
+    getline(cin, jsonInput);
+    json inputData = json::parse(jsonInput);
+    
+    int n = inputData["keys"]["n"];
+    int k = inputData["keys"]["k"];
+    
+    vector<pair<int, int>> points;
+    
+    for (auto &[key, value] : inputData.items()) {
+        if (key != "keys") {
+            int x = stoi(key);
+            int base = value["base"].get<int>();
+            string strValue = value["value"].get<string>();
+            int y = baseToDecimal(strValue, base);
+            points.emplace_back(x, y);
+        }
+    }
+    
+    if (points.size() < k) {
+        cerr << "Not enough points to determine the polynomial." << endl;
+        return 1;
+    }
+    
+    double constantTerm = lagrangeInterpolation(points);
+    cout << "The constant term (c) of the polynomial is: " << round(constantTerm) << endl;
+    
+    return 0;
+}
