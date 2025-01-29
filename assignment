@@ -1,69 +1,71 @@
-#include "json.hpp"
-using json = nlohmann::json;
+import java.math.BigInteger;
+import java.util.HashMap;
+import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.IOException;
 
-#include <iostream>
-#include <vector>
-#include <map>
-#include <sstream>
-#include <cmath>
-#include <nlohmann/json.hpp> // For JSON parsing
+public class ShamirSecretSharing {
 
-using json = nlohmann::json;
-using namespace std;
+    public static BigInteger lagrangeInterpolation(Map<Integer, BigInteger> shares) {
+        BigInteger secret = BigInteger.ZERO;
 
-// Function to convert a number from a given base to decimal
-int baseToDecimal(const string &num, int base) {
-    int result = 0;
-    for (char digit : num) {
-        result = result * base + (isdigit(digit) ? digit - '0' : digit - 'A' + 10);
-    }
-    return result;
-}
+        for (Map.Entry<Integer, BigInteger> share : shares.entrySet()) {
+            int x_i = share.getKey();
+            BigInteger y_i = share.getValue();
+            BigInteger term = BigInteger.ONE;
 
-// Function to compute Lagrange interpolation to find f(0)
-double lagrangeInterpolation(const vector<pair<int, int>> &points) {
-    double result = 0;
-    int size = points.size();
-    
-    for (int i = 0; i < size; i++) {
-        double term = points[i].second;
-        for (int j = 0; j < size; j++) {
-            if (i != j) {
-                term *= (0 - points[j].first) / static_cast<double>(points[i].first - points[j].first);
+            for (Map.Entry<Integer, BigInteger> otherShare : shares.entrySet()) {
+                int x_j = otherShare.getKey();
+                if (x_i != x_j) {
+                    term = term.multiply(BigInteger.valueOf(x_j)).subtract(BigInteger.valueOf(x_i));
+                    term = term.divide(BigInteger.valueOf(x_j - x_i));
+                }
             }
+
+            secret = secret.add(y_i.multiply(term));
         }
-        result += term;
+
+        return secret;
     }
-    return result;
+
+    public static BigInteger decodeYValue(String value, int base) {
+        return new BigInteger(value, base);
+    }
+
+    public static BigInteger processTestCase(Map<String, Object> testCase) {
+        int k = (Integer) testCase.get("k");
+        Map<Integer, BigInteger> shares = new HashMap<>();
+
+        for (Map.Entry<String, Map<String, String>> shareEntry : ((Map<String, Map<String, String>>) testCase.get("keys")).entrySet()) {
+            int x = Integer.parseInt(shareEntry.getKey());
+            String yValue = shareEntry.getValue().get("value");
+            int base = Integer.parseInt(shareEntry.getValue().get("base"));
+            shares.put(x, decodeYValue(yValue, base));
+        }
+
+        return lagrangeInterpolation(shares);
+    }
+
+    public static void main(String[] args) {
+        try {
+            // Load the JSON file
+            ObjectMapper objectMapper = new ObjectMapper();
+            File jsonFile = new File("testcases.json");
+
+            // Parse the JSON file into a Map
+            Map<String, Object> testCases = objectMapper.readValue(jsonFile, Map.class);
+
+            // Process the test cases
+            // Assuming the JSON structure contains a "testCases" array
+            for (Map<String, Object> testCase : (Iterable<Map<String, Object>>) testCases.get("testCases")) {
+                BigInteger secret = processTestCase(testCase);
+                System.out.println("Secret: " + secret);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
 
-int main() {
-    string jsonInput;
-    getline(cin, jsonInput);
-    json inputData = json::parse(jsonInput);
-    
-    int n = inputData["keys"]["n"];
-    int k = inputData["keys"]["k"];
-    
-    vector<pair<int, int>> points;
-    
-    for (auto &[key, value] : inputData.items()) {
-        if (key != "keys") {
-            int x = stoi(key);
-            int base = value["base"].get<int>();
-            string strValue = value["value"].get<string>();
-            int y = baseToDecimal(strValue, base);
-            points.emplace_back(x, y);
-        }
-    }
-    
-    if (points.size() < k) {
-        cerr << "Not enough points to determine the polynomial." << endl;
-        return 1;
-    }
-    
-    double constantTerm = lagrangeInterpolation(points);
-    cout << "The constant term (c) of the polynomial is: " << round(constantTerm) << endl;
-    
-    return 0;
-}
